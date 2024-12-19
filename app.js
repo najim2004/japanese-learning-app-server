@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors"); // Add this line
 const app = express();
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
@@ -9,7 +10,16 @@ const tutorialRoutes = require("./routes/tutorialRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
 connectDB();
-app.use(express.json());
+
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+); // Add this line
+const bodyLimit = "100mb"; // Adjust limit as needed
+app.use(express.json({ limit: bodyLimit }));
+app.use(express.urlencoded({ limit: bodyLimit, extended: true }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api", userRoutes);

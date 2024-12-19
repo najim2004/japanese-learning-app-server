@@ -2,30 +2,64 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
+const ImageUploader = require("../utils/imageUploader");
+
+const imageUploader = new ImageUploader();
 
 // Register user
 exports.registerUser = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.json({ success: false, status: 400, errors: errors.array() });
   }
 
-  const { name, email, password } = req.body;
+  const { name, email, password, photo } = req?.body;
+  let imgPublicId;
 
   try {
     let user = await User.findOne({ email });
 
     if (user) {
-      return res.status(400).json({ msg: "User already exists" });
+      return res.json({
+        success: false,
+        status: 400,
+        msg: "User already exists",
+      });
     }
 
-    user = new User({ name, email, password: await bcrypt.hash(password, 10) });
+    if (!photo) {
+      throw new Error("Photo is required");
+    }
+
+    const { url, public_id } = await imageUploader.uploadImage(photo);
+
+    if (!url || !public_id) {
+      throw new Error("Image upload failed");
+    }
+    imgPublicId = public_id;
+    user = new User({
+      name,
+      email,
+      password: await bcrypt.hash(password, 10),
+      photo: { url, public_id },
+    });
 
     await user.save();
-    res.status(201).json({ msg: "User registered successfully" });
+    res.json({
+      success: true,
+      status: 201,
+      msg: "User registered successfully",
+    });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server error");
+    if (imgPublicId) {
+      await imageUploader.deleteImage(imgPublicId);
+    }
+    res.json({
+      success: false,
+      status: 500,
+      msg: err.message || "Server error",
+    });
   }
 };
 
@@ -37,13 +71,21 @@ exports.loginUser = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(400).json({ msg: "Invalid credentials" });
+      return res.json({
+        success: false,
+        status: 400,
+        msg: "Invalid credentials",
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(400).json({ msg: "Invalid credentials" });
+      return res.json({
+        success: false,
+        status: 400,
+        msg: "Invalid credentials",
+      });
     }
 
     const payload = { userId: user.id };
@@ -54,11 +96,11 @@ exports.loginUser = async (req, res) => {
       { expiresIn: "1h" },
       (err, token) => {
         if (err) throw err;
-        res.json({ token });
+        res.json({ success: true, status: 200, token });
       }
     );
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server error");
+    res.json({ success: false, status: 500, msg: "Server error" });
   }
 };
