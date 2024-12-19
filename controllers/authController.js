@@ -77,8 +77,7 @@ exports.loginUser = async (req, res) => {
         msg: "Invalid credentials",
       });
     }
-
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user?.password);
 
     if (!isMatch) {
       return res.json({
@@ -96,7 +95,12 @@ exports.loginUser = async (req, res) => {
       { expiresIn: "1h" },
       (err, token) => {
         if (err) throw err;
-        res.json({ success: true, status: 200, token });
+        res.json({
+          success: true,
+          status: 200,
+          token,
+          msg: "User logged in successfully",
+        });
       }
     );
   } catch (err) {
