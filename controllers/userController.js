@@ -1,12 +1,27 @@
 const User = require("../models/User");
 
-// Get all users
-exports.getUsers = async (req, res) => {
+exports.getUser = async (req, res) => {
   try {
-    const users = await User.find();
-    res.status(200).json(users);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
+    const user = await User.findOne({ _id: req.user.userId })
+      .select("-password")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        msg: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user: user,
+    });
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    return res.status(500).json({
+      success: false,
+      msg: "Internal server error",
+    });
   }
 };
