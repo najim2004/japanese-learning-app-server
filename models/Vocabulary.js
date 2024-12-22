@@ -5,6 +5,11 @@ const vocabularySchema = new mongoose.Schema({
   pronunciation: { type: String, required: true },
   whenToSay: { type: String, required: true },
   lessonNo: { type: Number, required: true },
+  lessonId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Lesson",
+    required: true,
+  },
 });
 
 module.exports = mongoose.model("Vocabulary", vocabularySchema);
