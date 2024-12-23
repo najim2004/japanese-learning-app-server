@@ -6,22 +6,49 @@ const Vocabulary = require("../models/Vocabulary");
 // Add a lesson
 exports.addLesson = async (req, res) => {
   const { name, lessonNumber, description } = req?.body;
+
   try {
-    const newLesson = new Lesson({ name, lessonNumber, description });
+    // Validate required fields
+    if (!name || !lessonNumber) {
+      return res.json({
+        status: 400,
+        success: false,
+        msg: "Name and lesson number are required",
+      });
+    }
+
+    // Check if lesson number already exists
+    const existingLesson = await Lesson.findOne({ lessonNumber });
+    if (existingLesson) {
+      return res.json({
+        status: 400,
+        success: false,
+        msg: "Lesson number already exists",
+      });
+    }
+
+    // Create and save new lesson
+    const newLesson = new Lesson({
+      name,
+      lessonNumber,
+      description: description || "",
+    });
+
     await newLesson.save();
-    res.json({
+
+    return res.json({
       status: 201,
       success: true,
       msg: "Lesson created successfully",
       data: newLesson,
     });
   } catch (err) {
-    console.error(err.message);
-    res.json({
+    console.error("Error creating lesson:", err.message);
+    return res.json({
       status: 500,
       success: false,
-      msg: err.message || "Server error",
-      error: err,
+      msg: "Failed to create lesson",
+      error: err.message,
     });
   }
 };
@@ -94,6 +121,99 @@ exports.getLessons = async (req, res) => {
         totalPages: Math.ceil(totalLessons / limit),
         totalLessons,
       },
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.json({
+      status: 500,
+      success: false,
+      msg: err.message || "Server error",
+      error: err,
+    });
+  }
+};
+
+exports.deleteLesson = async (req, res) => {
+  const { id } = req?.params;
+  try {
+    const lesson = await Lesson.findById(id);
+    if (!lesson) {
+      return res.json({
+        status: 404,
+        success: false,
+        msg: "Lesson not found",
+      });
+    }
+
+    // Delete associated user progress
+    await UserProgress.deleteMany({ lessonId: id });
+
+    // Delete associated vocabulary
+    await Vocabulary.deleteMany({ lessonId: id });
+
+    // Delete the lesson
+    await Lesson.findByIdAndDelete(id);
+
+    res.json({
+      status: 200,
+      success: true,
+      msg: "Lesson and associated data deleted successfully",
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.json({
+      status: 500,
+      success: false,
+      msg: err.message || "Server error",
+      error: err,
+    });
+  }
+};
+
+exports.updateLesson = async (req, res) => {
+  const { id } = req?.params;
+  const updateData = req?.body;
+
+  try {
+    // Check if lesson exists
+    const lesson = await Lesson.findById(id);
+    if (!lesson) {
+      return res.json({
+        status: 404,
+        success: false,
+        msg: "Lesson not found",
+      });
+    }
+
+    // Check if new lessonNumber already exists
+    if (
+      updateData.lessonNumber &&
+      updateData.lessonNumber !== lesson.lessonNumber
+    ) {
+      const existingLesson = await Lesson.findOne({
+        lessonNumber: updateData.lessonNumber,
+      });
+      if (existingLesson) {
+        return res.json({
+          status: 400,
+          success: false,
+          msg: "Lesson number already exists",
+        });
+      }
+    }
+
+    // Update the lesson with only the provided fields
+    const updatedLesson = await Lesson.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    res.json({
+      status: 200,
+      success: true,
+      msg: "Lesson updated successfully",
+      data: updatedLesson,
     });
   } catch (err) {
     console.error(err.message);

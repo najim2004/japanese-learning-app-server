@@ -1,31 +1,253 @@
+const Lesson = require("../models/Lesson");
+const UserProgress = require("../models/UserProgress");
 const Vocabulary = require("../models/Vocabulary");
 
 // Add a vocabulary
 exports.addVocabulary = async (req, res) => {
-  const { word, pronunciation, whenToSay, lessonNo } = req.body;
+  const { word, pronunciation, whenToSay, lessonId, adminEmail, meaning } =
+    req?.body;
 
   try {
+    const lesson = await Lesson.findById({ _id: lessonId });
+    if (!lesson) {
+      throw new Error("Lesson not found");
+    }
+    // is this vocabulary already added?
+    const existingVocabulary = await Vocabulary.findOne({
+      word,
+      lessonId,
+    });
+    if (existingVocabulary) {
+      throw new Error("Vocabulary already exists");
+    }
     const newVocabulary = new Vocabulary({
       word,
       pronunciation,
       whenToSay,
-      lessonNo,
+      lessonNo: lesson.lessonNumber,
+      lessonId,
+      adminEmail,
+      meaning,
     });
     await newVocabulary.save();
-    res.status(201).json(newVocabulary);
+    res.json({
+      status: 201,
+      success: true,
+      msg: "Vocabulary added successfully",
+    });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server error");
+    res.send({
+      status: 500,
+      success: false,
+      msg: err.message || "Server error",
+    });
   }
 };
 
 // Get all vocabularies
 exports.getVocabularies = async (req, res) => {
   try {
-    const vocabularies = await Vocabulary.find();
-    res.status(200).json(vocabularies);
+    const { page = 1, limit = 10, search } = req.query;
+    const query = {};
+
+    if (search) {
+      query.$or = [
+        { word: { $regex: search, $options: "i" } },
+        { pronunciation: { $regex: search, $options: "i" } },
+        { meaning: { $regex: search, $options: "i" } },
+        { whenToSay: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const totalDocs = await Vocabulary.countDocuments(query);
+    const vocabularies = await Vocabulary.find(query)
+      .sort({ updatedAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .exec();
+
+    res.json({
+      status: 200,
+      success: true,
+      vocabularies,
+      totalPages: Math.ceil(totalDocs / limit),
+      currentPage: page,
+      totalDocs,
+    });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server error");
+    res.json({
+      status: 500,
+      success: false,
+      message: err.message || "Server error",
+    });
+  }
+};
+
+// get a single vocabulary
+exports.getVocabulary = async (req, res) => {
+  const vocabularyId = req?.params?.id;
+  const userId = req?.user?.userId; // Assuming you have user info in request
+
+  try {
+    if (!vocabularyId) {
+      return res.json({
+        status: 400,
+        success: false,
+        msg: "Vocabulary ID is required",
+      });
+    }
+
+    const vocabulary = await Vocabulary.findById(vocabularyId);
+    if (!vocabulary) {
+      return res.json({
+        status: 404,
+        success: false,
+        msg: "Vocabulary not found",
+      });
+    }
+
+    // Find user progress for this vocabulary
+    const userProgress = await UserProgress.findOne({
+      userId,
+      lessonId: vocabulary.lessonId,
+    });
+
+    // Convert vocabulary to plain object so we can add new property
+    const vocabularyObj = vocabulary.toObject();
+    vocabularyObj.isComplete =
+      userProgress?.completedVocabularies?.find(
+        (VId) => vocabulary._id === VId
+      ) || false;
+
+    return res.json({
+      status: 200,
+      success: true,
+      vocabulary: vocabularyObj,
+    });
+  } catch (err) {
+    console.error(err.message);
+    return res.json({
+      status: 500,
+      success: false,
+      msg: err.message || "Server error",
+    });
+  }
+};
+// get completed vocabularies by lesson
+
+// update a vocabulary
+exports.updateVocabulary = async (req, res) => {
+  const vocabularyId = req?.params?.id;
+  const updates = req?.body;
+
+  try {
+    // Validate input
+    if (!vocabularyId) {
+      return res.json({
+        status: 400,
+        success: false,
+        msg: "Vocabulary ID is required",
+      });
+    }
+
+    if (!updates || Object.keys(updates).length === 0) {
+      return res.json({
+        status: 400,
+        success: false,
+        msg: "No update data provided",
+      });
+    }
+
+    // Check if vocabulary exists
+    const vocabulary = await Vocabulary.findById(vocabularyId);
+    if (!vocabulary) {
+      return res.json({
+        status: 404,
+        success: false,
+        msg: "Vocabulary not found",
+      });
+    }
+
+    // If updating word or lessonId, check for duplicates
+    if (updates.word || updates.lessonId) {
+      const existingVocabulary = await Vocabulary.findOne({
+        word: updates.word || vocabulary.word,
+        lessonId: updates.lessonId || vocabulary.lessonId,
+        _id: { $ne: vocabularyId },
+      });
+
+      if (existingVocabulary) {
+        return res.json({
+          status: 400,
+          success: false,
+          msg: "Vocabulary already exists in this lesson",
+        });
+      }
+    }
+
+    // Update vocabulary
+    const updatedVocabulary = await Vocabulary.findByIdAndUpdate(
+      vocabularyId,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+
+    return res.json({
+      status: 200,
+      success: true,
+      msg: "Vocabulary updated successfully",
+      vocabulary: updatedVocabulary,
+    });
+  } catch (err) {
+    console.error("Error updating vocabulary:", err);
+    return res.json({
+      status: 500,
+      success: false,
+      msg:
+        err.name === "ValidationError"
+          ? "Invalid update data provided"
+          : "Internal server error",
+    });
+  }
+};
+
+// Delete a vocabulary
+exports.deleteVocabulary = async (req, res) => {
+  const vocabularyId = req?.params?.id;
+
+  try {
+    if (!vocabularyId) {
+      return res.json({
+        status: 400,
+        success: false,
+        msg: "Vocabulary ID is required",
+      });
+    }
+
+    const vocabulary = await Vocabulary.findById(vocabularyId);
+    if (!vocabulary) {
+      return res.json({
+        status: 404,
+        success: false,
+        msg: "Vocabulary not found",
+      });
+    }
+
+    await Vocabulary.findByIdAndDelete(vocabularyId);
+
+    return res.json({
+      status: 200,
+      success: true,
+      msg: "Vocabulary deleted successfully",
+    });
+  } catch (err) {
+    console.error("Error deleting vocabulary:", err);
+    return res.json({
+      status: 500,
+      success: false,
+      msg: err.message || "Internal server error",
+    });
   }
 };
