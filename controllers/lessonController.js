@@ -225,3 +225,23 @@ exports.updateLesson = async (req, res) => {
     });
   }
 };
+
+exports.getLessonNames = async (req, res) => {
+  try {
+    const lessons = await Lesson.find({}, { name: 1, _id: 1, lessonNumber: 1 });
+    res.json({
+      status: 200,
+      success: true,
+      msg: "Lesson names retrieved successfully",
+      data: lessons,
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.json({
+      status: 500,
+      success: false,
+      msg: err.message || "Server error",
+      error: err,
+    });
+  }
+};

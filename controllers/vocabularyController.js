@@ -1,13 +1,14 @@
 const Lesson = require("../models/Lesson");
+const User = require("../models/User");
 const UserProgress = require("../models/UserProgress");
 const Vocabulary = require("../models/Vocabulary");
 
 // Add a vocabulary
 exports.addVocabulary = async (req, res) => {
-  const { word, pronunciation, whenToSay, lessonId, adminEmail, meaning } =
-    req?.body;
-
+  const { word, pronunciation, whenToSay, lessonId, meaning } = req?.body;
+  const userId = req?.user?.userId; // Assuming you have user info in request
   try {
+    const user = await User.findById(userId).select("-password");
     const lesson = await Lesson.findById({ _id: lessonId });
     if (!lesson) {
       throw new Error("Lesson not found");
@@ -26,7 +27,7 @@ exports.addVocabulary = async (req, res) => {
       whenToSay,
       lessonNo: lesson.lessonNumber,
       lessonId,
-      adminEmail,
+      adminEmail: user?.email,
       meaning,
     });
     await newVocabulary.save();
@@ -168,6 +169,20 @@ exports.updateVocabulary = async (req, res) => {
         success: false,
         msg: "Vocabulary not found",
       });
+    }
+
+    // If lessonId is being updated, check if the lesson exists
+    if (updates.lessonId) {
+      const lessonExists = await Lesson.findById(updates.lessonId);
+      if (!lessonExists) {
+        return res.json({
+          status: 400,
+          success: false,
+          msg: "Invalid lesson ID provided",
+        });
+      }
+      // Update the lessonNo based on the new lesson
+      updates.lessonNo = lessonExists.lessonNumber;
     }
 
     // If updating word or lessonId, check for duplicates

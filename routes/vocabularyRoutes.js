@@ -8,11 +8,22 @@ const {
   deleteVocabulary,
 } = require("../controllers/vocabularyController");
 const authMiddleware = require("../middleware/authMiddleware");
+const { isAdmin } = require("../middleware/isAdmin");
 
-router.post("/admin/vocabularies", authMiddleware, addVocabulary);
-router.get("/admin/vocabularies", authMiddleware, getVocabularies);
+router.post("/admin/vocabularies", authMiddleware, isAdmin, addVocabulary);
+router.get("/admin/vocabularies", authMiddleware, isAdmin, getVocabularies);
 router.get("/vocabularies/:slug", authMiddleware, getVocabulary);
-router.patch("/admin/vocabularies/:id", authMiddleware, updateVocabulary);
-router.delete("/admin/vocabularies/:id", authMiddleware, deleteVocabulary);
+router.patch(
+  "/admin/vocabularies/:id",
+  authMiddleware,
+  isAdmin,
+  updateVocabulary
+);
+router.delete(
+  "/admin/vocabularies/:id",
+  authMiddleware,
+  isAdmin,
+  deleteVocabulary
+);
 
 module.exports = router;
