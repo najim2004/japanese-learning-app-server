@@ -1,9 +1,9 @@
 const User = require("../models/User");
 
-exports.isAdmin = (req, res, next) => {
+exports.isAdmin = async (req, res, next) => {
   try {
     const userId = req?.user?.userId;
-    const isAdmin = User.findOne({ _id: userId, role: "admin" });
+    const isAdmin = await User.findOne({ _id: userId, role: "admin" });
     if (!isAdmin) {
       return res.status(403).json({ success: false, msg: "Access Denied" });
     }

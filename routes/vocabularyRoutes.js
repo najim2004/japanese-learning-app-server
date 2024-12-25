@@ -6,13 +6,15 @@ const {
   getVocabulary,
   updateVocabulary,
   deleteVocabulary,
+  getVocabulariesName,
 } = require("../controllers/vocabularyController");
 const authMiddleware = require("../middleware/authMiddleware");
 const { isAdmin } = require("../middleware/isAdmin");
 
 router.post("/admin/vocabularies", authMiddleware, isAdmin, addVocabulary);
 router.get("/admin/vocabularies", authMiddleware, isAdmin, getVocabularies);
-router.get("/vocabularies/:slug", authMiddleware, getVocabulary);
+router.get("/vocabularies/:id", authMiddleware, getVocabulary);
+router.get("/vocabularies/names/:id", authMiddleware, getVocabulariesName);
 router.patch(
   "/admin/vocabularies/:id",
   authMiddleware,

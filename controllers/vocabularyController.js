@@ -118,8 +118,8 @@ exports.getVocabulary = async (req, res) => {
     // Convert vocabulary to plain object so we can add new property
     const vocabularyObj = vocabulary.toObject();
     vocabularyObj.isComplete =
-      userProgress?.completedVocabularies?.find(
-        (VId) => vocabulary._id === VId
+      userProgress?.completedVocabularies?.some(
+        (VId) => vocabularyId.toString() === VId.toString()
       ) || false;
 
     return res.json({
@@ -263,6 +263,53 @@ exports.deleteVocabulary = async (req, res) => {
       status: 500,
       success: false,
       msg: err.message || "Internal server error",
+    });
+  }
+};
+
+// get vocabularies names by lesson id
+exports.getVocabulariesName = async (req, res) => {
+  const lessonId = req?.params?.id;
+  const userId = req?.user?.userId;
+
+  try {
+    // Get user progress for this lesson
+    const userProgress = await UserProgress.findOne({ userId, lessonId });
+    const completedVocabs = userProgress?.completedVocabularies || [];
+
+    // Get vocabularies with only required fields
+    const vocabularies = await Vocabulary.find({ lessonId }, "_id word slug");
+
+    // Map vocabularies with completion status
+    const mappedVocabs = vocabularies.map((vocab) => ({
+      _id: vocab._id,
+      word: vocab.word,
+      slug: vocab.slug,
+      isComplete: completedVocabs.includes(vocab._id),
+    }));
+
+    // Sort: completed first, then by createdAt within each group
+    const sortedVocabs = mappedVocabs.sort((a, b) => {
+      if (a.isComplete !== b.isComplete) return b.isComplete ? 1 : -1;
+      return b.createdAt - a.createdAt;
+    });
+
+    const finalData = sortedVocabs.map((vocab, indx) => {
+      vocab.locked = indx === 0 ? false : !sortedVocabs[indx - 1].isComplete;
+      return vocab;
+    });
+
+    res.json({
+      status: 200,
+      success: true,
+      data: finalData,
+    });
+  } catch (error) {
+    console.error(error);
+    res.json({
+      status: 500,
+      success: false,
+      msg: error.message || "Internal server error",
     });
   }
 };

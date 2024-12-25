@@ -60,7 +60,10 @@ exports.getLessons = async (req, res) => {
   const skip = (page - 1) * limit;
   const userId = req?.user?.userId;
   try {
-    const isAdmin = User.findOne({ _id: userId, role: "admin" });
+    const isAdmin = await User.findOne(
+      { role: "admin", _id: userId },
+      { password: 0 }
+    );
     const totalLessons = await Lesson.countDocuments();
     const lessons = await Lesson.find()
       .skip(skip)

@@ -10,7 +10,7 @@ const {
 const authMiddleware = require("../middleware/authMiddleware");
 const { isAdmin } = require("../middleware/isAdmin");
 
-router.get("/lessons", getLessons);
+router.get("/lessons", authMiddleware, getLessons);
 router.post("/lessons", authMiddleware, isAdmin, addLesson);
 router.get("/admin/lessons", authMiddleware, isAdmin, getLessons);
 router.get("/admin/lessons/names", authMiddleware, isAdmin, getLessonNames);

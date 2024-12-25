@@ -8,6 +8,7 @@ const lessonRoutes = require("./routes/lessonRoutes");
 const vocabularyRoutes = require("./routes/vocabularyRoutes");
 const tutorialRoutes = require("./routes/tutorialRoutes");
 const overviewRoutes = require("./routes/overviewRoutes");
+const userProgressRoutes = require("./routes/userProgressRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
 connectDB();
@@ -28,6 +29,7 @@ app.use("/api", lessonRoutes);
 app.use("/api", vocabularyRoutes);
 app.use("/api", tutorialRoutes);
 app.use("/api", overviewRoutes);
+app.use("/api", userProgressRoutes);
 
 app.use(errorHandler);
 

@@ -1,10 +1,11 @@
 const Lesson = require("../models/Lesson");
 const UserProgress = require("../models/UserProgress");
+const Vocabulary = require("../models/Vocabulary");
 
 exports.updateProgress = async (req, res) => {
   try {
     const userId = req?.user?.userId;
-    const { lessonId, vocabularyId } = req.body;
+    const { lessonId, id: vocabularyId } = req?.params;
 
     // Get or create progress
     let progress = await UserProgress.findOne({ userId, lessonId });
@@ -18,18 +19,16 @@ exports.updateProgress = async (req, res) => {
     }
 
     // Calculate progress percentage
-    const lesson = await Lesson.findById(lessonId);
+    const vocabularyCount = await Vocabulary.countDocuments(lessonId);
     const progressPercentage =
-      (progress.completedVocabularies.length / lesson.vocabularyCount) * 100;
-
+      (progress.completedVocabularies.length / vocabularyCount) * 100;
     // Update progress
     progress.progress = progressPercentage;
     progress.isCompleted = progressPercentage === 100;
-    progress.lastAccessedAt = new Date();
     await progress.save();
 
-    res.json(progress);
+    res.json({ status: 200, success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, msg: error.message });
   }
 };
