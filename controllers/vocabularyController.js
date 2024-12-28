@@ -92,6 +92,10 @@ exports.getVocabulary = async (req, res) => {
   const userId = req?.user?.userId; // Assuming you have user info in request
 
   try {
+    const isAdmin = await User.findOne(
+      { role: "admin", _id: userId },
+      { password: 0 }
+    );
     if (!vocabularyId) {
       return res.json({
         status: 400,
@@ -121,7 +125,9 @@ exports.getVocabulary = async (req, res) => {
       userProgress?.completedVocabularies?.some(
         (VId) => vocabularyId.toString() === VId.toString()
       ) || false;
-
+    if (isAdmin) {
+      vocabularyObj.isComplete = true;
+    }
     return res.json({
       status: 200,
       success: true,
@@ -273,6 +279,10 @@ exports.getVocabulariesName = async (req, res) => {
   const userId = req?.user?.userId;
 
   try {
+    const isAdmin = await User.findOne(
+      { role: "admin", _id: userId },
+      { password: 0 }
+    );
     // Get user progress for this lesson
     const userProgress = await UserProgress.findOne({ userId, lessonId });
     const completedVocabs = userProgress?.completedVocabularies || [];
@@ -295,7 +305,8 @@ exports.getVocabulariesName = async (req, res) => {
     });
 
     const finalData = sortedVocabs.map((vocab, indx) => {
-      vocab.locked = indx === 0 ? false : !sortedVocabs[indx - 1].isComplete;
+      vocab.locked =
+        indx === 0 || isAdmin ? false : !sortedVocabs[indx - 1].isComplete;
       return vocab;
     });
 

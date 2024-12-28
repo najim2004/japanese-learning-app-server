@@ -7,7 +7,7 @@ const loggedInMiddleware = (req, res, next) => {
     const verified = jwt.verify(token, process.env.JWT_SECRET);
     req.user = verified;
   } catch (err) {
-    console.log("error from loggedInMiddleware", err);
+    console.log("token not found in loggedInMiddleware");
   } finally {
     next();
   }

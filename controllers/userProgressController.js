@@ -19,7 +19,7 @@ exports.updateProgress = async (req, res) => {
     }
 
     // Calculate progress percentage
-    const vocabularyCount = await Vocabulary.countDocuments(lessonId);
+    const vocabularyCount = await Vocabulary.countDocuments({ lessonId });
     const progressPercentage =
       (progress.completedVocabularies.length / vocabularyCount) * 100;
     // Update progress

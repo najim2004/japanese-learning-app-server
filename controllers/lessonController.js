@@ -88,7 +88,13 @@ exports.getLessons = async (req, res) => {
             vocabularyCount,
           };
         }
-
+        if (!userId) {
+          return {
+            ...lesson.toObject(),
+            vocabularyCount,
+            locked: true,
+          };
+        }
         const progress = userProgress.find(
           (p) => p.lessonId.toString() === lesson._id.toString()
         );
